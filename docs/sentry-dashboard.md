@@ -125,6 +125,54 @@ sentry dashboard widget add 'Fizzy Observability' 'Notifications by Kind' \
   --group-by kind --limit 10
 ```
 
+## Yabeda Rails Metrics
+
+Aggregate request metrics from `yabeda-rails`. These complement Sentry's per-request traces with percentile distributions across all requests.
+
+### Request Throughput (Yabeda)
+
+Total request count from `yabeda-rails`, grouped by controller.
+
+```bash
+sentry dashboard widget add 'Fizzy Observability' 'Request Throughput (Yabeda)' \
+  --display line --dataset tracemetrics \
+  --query 'sum(value,rails.requests_total,counter,none)' \
+  --group-by controller --limit 10
+```
+
+### Request Duration p50/p95 (Yabeda)
+
+Response latency distribution from `yabeda-rails`.
+
+```bash
+sentry dashboard widget add 'Fizzy Observability' 'Request Duration p50/p95 (Yabeda)' \
+  --display line --dataset tracemetrics \
+  --query 'p50(value,rails.request_duration,distribution,second)' \
+  --query 'p95(value,rails.request_duration,distribution,second)'
+```
+
+### View vs DB Runtime (Yabeda)
+
+Time spent in view rendering vs ActiveRecord, from `yabeda-rails`.
+
+```bash
+sentry dashboard widget add 'Fizzy Observability' 'View vs DB Runtime (Yabeda)' \
+  --display line --dataset tracemetrics \
+  --query 'p95(value,rails.view_runtime,distribution,second)' \
+  --query 'p95(value,rails.db_runtime,distribution,second)'
+```
+
+### Requests by Status (Yabeda)
+
+Request count grouped by HTTP status code.
+
+```bash
+sentry dashboard widget add 'Fizzy Observability' 'Requests by Status (Yabeda)' \
+  --display bar --dataset tracemetrics \
+  --query 'sum(value,rails.requests_total,counter,none)' \
+  --group-by status --limit 10
+```
+
 ## Infrastructure Health
 
 ![Infrastructure Health](./yabeda.png)
@@ -191,6 +239,7 @@ sentry api --method PUT /organizations/<org>/dashboards/<id>/ --input dashboard.
 ## Reference
 
 - **tracemetrics dataset**: Custom metrics from `Sentry.metrics.*` and Yabeda plugins. Query format: `aggregation(value,metric_name,metric_type,unit)`.
+- **Unit convention**: Sentry uses singular unit names (`second`, `millisecond`, `byte`). Yabeda plugins declare plural symbols (`:seconds`, `:milliseconds`); `sentry-yabeda` normalizes these before emission. Dashboard queries must also use the singular form — `distribution,second` not `distribution,seconds` — or the widget will return no data.
 - **spans dataset** (default): Span-based queries for request performance.
 - **error-events dataset**: Error event queries (replaces deprecated `discover`).
 - The CLI `sentry dashboard view` cannot render tracemetrics widgets — open the web UI to verify.
@@ -201,7 +250,7 @@ sentry api --method PUT /organizations/<org>/dashboards/<id>/ --input dashboard.
 
 ```bash
 # Delete all widgets (by index, last to first)
-for i in $(seq 15 -1 0); do
+for i in $(seq 19 -1 0); do
   sentry dashboard widget delete 'Fizzy Observability' --index $i --yes
 done
 
